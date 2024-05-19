@@ -17,15 +17,11 @@ CODESEG
 P8086
 ORG 100h
 
-_start:	DosCall DOS_GET_DISK_DRIVE
-	add al, "A"	; returned drive is zero-based
-	mov [filepath.drive], al
-	mov dx, offset filepath
+_start:	DispatchFilename
 	DosCall DOS_OPEN_FILE, 0	; read only, exclusive mode
-	jnc @@s1	; call succeeded?
-	mov [filepath.terminator], 0dh	; add CR to LF
-	ErrExit msgerropen
-@@s1:	mov bx, ax
+	jnc s1	; call succeeded?
+	OpenErrExit
+s1:	mov bx, ax
 	mov cx, SIZE datetime
 	mov dx, offset datetime
 	DosCall DOS_READ_FROM_HANDLE

@@ -29,16 +29,15 @@ _start:	DosCall DOS_GET_DATE
 	sub dx, ax	; ...and subtract all words from it
 	loop @@cl
 	mov [datetime.combined.checksum], dx
-	DosCall DOS_GET_DISK_DRIVE
-	add al, "A"
-	mov [filepath.drive], al
-	mov cx, DOS_ATTR_HIDDEN	; keep it hidden
-	mov dx, offset filepath
-	DosCall DOS_CREATE_FILE
-	jnc @@s1
-	mov [filepath.terminator], 0dh
-	ErrExit msgerropen
-@@s1:	mov bx, ax
+	DispatchFilename
+	xor cx, cx
+	test [isdefpath], 1
+	jz @@show
+	mov cl, DOS_ATTR_HIDDEN	; keep it hidden
+@@show:	DosCall DOS_CREATE_FILE
+	jnc s1
+	OpenErrExit
+s1:	mov bx, ax
 	mov cx, SIZE datetime
 	mov dx, offset datetime
 	DosCall DOS_WRITE_TO_HANDLE
