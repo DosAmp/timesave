@@ -85,20 +85,24 @@ MACRO DosCall func, minor
 	int DOS_FUNCTION
 ENDM
 
+; point to default ASCIIZ file name, or command line
+; if given
 MACRO DispatchFilename
-	LOCAL default, end
-	xor ax, ax
-	mov al, [byte PSP_CMDLEN]
-	sub al, 1
+	LOCAL findend, default, end
+	cmp [byte PSP_CMDLEN], 1
 	jle default
-	mov si, offset msgerropen
-	mov di, PSP_CMDLINE-(SIZE msgerropen)
-	mov cx, SIZE msgerropen
-	rep movsb
-	add di, ax
+	mov di, PSP_CMDLINE
+	mov al, 20h	; control characters and space
+findend:
+	scasb
+	jb findend	; find last of them
+	dec di
+	cmp di, PSP_CMDLINE
+	je default	; just whitespace
+	mov bx, di	; keep around for OpenErrExit
 	mov al, 0
 	stosb
-	mov ax, 240ah
+	mov ax, 240ah	; LF + $
 	stosw
 	mov [isdefpath], 0
 	mov dx, PSP_CMDLINE
@@ -118,26 +122,25 @@ MACRO ErrExit msg
 	DosCall DOS_TERMINATE_EXE, 1
 ENDM
 
+; print error message for opening default file
+; or from command line
 MACRO OpenErrExit
-	LOCAL default, notfound
+	LOCAL default, notfound, end
 	test [isdefpath], 1
 	jnz default
+	mov [byte bx], 0dh
+	mov si, offset msgerropen
 	mov dx, PSP_CMDLINE-(SIZE msgerropen)
-	; screw it, I don't care to remember filename length
-	; for the error message
 	mov di, dx
-	mov al, 0
-notfound:
-	scasb
-	jne notfound
-	mov al, 0dh	; overwrite zero with CR
-	dec di
-	stosb
-	DosCall DOS_WRITE_STRING
-	DosCall DOS_TERMINATE_EXE, 1
+	mov cx, SIZE msgerropen
+	rep movsb
+	jmp short end
 default:
 	mov [filepath.terminator], 0dh	; add CR to LF
-	ErrExit msgerropen
+	mov dx, offset msgerropen
+end:
+	DosCall DOS_WRITE_STRING
+	DosCall DOS_TERMINATE_EXE, 1
 ENDM
 
 ; moved from DECIMAL.INC for one-pass assembly
